@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+google-generativeai
+duckduckgo_search
+edge-tts
+pydantic
+python-dotenv
+pypdf
+python-multipart

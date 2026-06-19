@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEACHu - Conversational Hinglish Study Tutor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Mermaid CDN for Mindmaps -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+    </script>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo-area">
+                <span class="logo-emoji">🎓</span>
+                <div>
+                    <h1>TEACHu</h1>
+                    <p class="tagline">Your conversational Hinglish study tutor</p>
+                </div>
+            </div>
+            <div class="header-controls">
+                <div id="pdfStatusPill" class="status-pill hidden">
+                    <span class="pill-dot"></span>
+                    <span class="pill-text">PDF Loaded</span>
+                    <button id="clearPdfBtn" title="Clear PDF Context">×</button>
+                </div>
+                <button id="settingsBtn" class="icon-btn" title="API Settings">⚙️</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Backend API Settings</h3>
+            <p>If you deploy the frontend and backend separately (e.g., Netlify + Railway), set your Railway backend URL here.</p>
+            <div class="form-group">
+                <label for="apiUrlInput">Backend Base URL:</label>
+                <input type="text" id="apiUrlInput" placeholder="http://127.0.0.1:8000 (leave empty for same domain)">
+            </div>
+            <div class="modal-actions">
+                <button id="saveSettingsBtn" class="btn primary">Save</button>
+                <button id="closeSettingsBtn" class="btn secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Action Modal -->
+    <div id="pdfActionModal" class="modal hidden">
+        <div class="modal-content" style="text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">📄</div>
+            <h3 id="pdfActionTitle">PDF Context Loaded!</h3>
+            <p id="pdfActionPromptText">I have successfully parsed your PDF notes. Would you like me to explain it?</p>
+            <div class="modal-actions" style="justify-content: center; gap: 1rem; margin-top: 1.5rem;">
+                <button id="pdfActionYesBtn" class="btn primary" style="padding: 0.6rem 1.5rem;">Yes, Go Ahead</button>
+                <button id="pdfActionNoBtn" class="btn secondary" style="padding: 0.6rem 1.5rem;">No, Skip</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="app-layout">
+        <!-- Navigation Tabs -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="learn">📖 Learn Topic</button>
+            <button class="tab-btn" data-tab="quiz">⚡ Active Recall Quiz</button>
+        </nav>
+
+        <div class="dashboard-grid">
+            <!-- Left Pane: Content / Active Area -->
+            <section class="main-content-pane">
+                <!-- LEARN TAB -->
+                <div id="learnTabContent" class="tab-pane active">
+                    <div class="search-section">
+                        <div class="search-box">
+                            <input type="text" id="topicInput" placeholder="Enter topic (e.g., Quantum Entanglement, Binary Search, Photosynthesis)...">
+                            <button id="explainBtn" class="btn primary">Explain</button>
+                        </div>
+                        <div class="search-options-row">
+                            <div class="checkbox-group">
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" id="usePdfCheckbox">
+                                    <span class="checkmark"></span>
+                                    Guide explanation using uploaded PDF content
+                                </label>
+                            </div>
+                            <div class="language-group">
+                                <label for="languageSelect">🗣️ Language / बोली:</label>
+                                <select id="languageSelect">
+                                    <option value="hinglish" selected>Hinglish (Conversational)</option>
+                                    <option value="english">English (Simple)</option>
+                                    <option value="hindi">हिन्दी (Hindi Devanagari)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Welcome Screen -->
+                    <div id="welcomeScreen" class="welcome-card">
+                        <h2>Namaste! Let's start learning.</h2>
+                        <p>Type a topic above, or upload your class notes as a PDF in the sidebar. I will break down complex concepts into easy, conversational Hinglish with diagrams and interactive flowcharts.</p>
+                        <div class="suggested-topics">
+                            <span>Try asking:</span>
+                            <button class="suggested-tag">Quantum Entanglement</button>
+                            <button class="suggested-tag">Recursion in Programming</button>
+                            <button class="suggested-tag">Mitochondria Function</button>
+                        </div>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingState" class="loading-container hidden">
+                        <div class="spinner"></div>
+                        <p id="loadingText">Generating Hinglish explanation...</p>
+                    </div>
+
+                    <!-- Explanations Content Container -->
+                    <article id="explanationArticle" class="explanation-article hidden">
+                        <header class="article-header">
+                            <h2 id="articleTitle">Topic Title</h2>
+                            <button id="listenFullBtn" class="listen-btn primary-listen" title="Listen to explanation">
+                                <span class="play-icon">🔊</span> Listen to Full Explanation
+                            </button>
+                        </header>
+
+                        <!-- Dynamic Interspersed Content Blocks will go here -->
+                        <div id="articleBlocks" class="article-blocks"></div>
+
+                        <!-- Mermaid Mindmap Container -->
+                        <div id="mermaidContainer" class="mermaid-section hidden">
+                            <h3>🗺️ Topic Mindmap</h3>
+                            <div class="mindmap-wrapper">
+                                <div id="mermaidOutput" class="mermaid"></div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- QUIZ TAB -->
+                <div id="quizTabContent" class="tab-pane">
+                    <div class="quiz-setup">
+                        <h2>Practice Active Recall</h2>
+                        <p>Test your understanding. Ask a question verbally, and get evaluated immediately.</p>
+                        <div class="quiz-topic-selector">
+                            <input type="text" id="quizTopicInput" placeholder="Topic for the quiz (e.g., Quantum Entanglement)...">
+                            <button id="startQuizBtn" class="btn primary">Start Quiz</button>
+                        </div>
+                        <div class="search-options-row">
+                            <div class="checkbox-group">
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" id="quizUsePdfCheckbox">
+                                    <span class="checkmark"></span>
+                                    Ground questions in uploaded PDF content
+                                </label>
+                            </div>
+                            <div class="language-group">
+                                <label for="quizLanguageSelect">🗣️ Language / बोली:</label>
+                                <select id="quizLanguageSelect">
+                                    <option value="hinglish" selected>Hinglish (Conversational)</option>
+                                    <option value="english">English (Simple)</option>
+                                    <option value="hindi">हिन्दी (Hindi Devanagari)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quiz Play Zone -->
+                    <div id="quizPlayZone" class="quiz-zone hidden">
+                        <div class="quiz-card">
+                            <div class="quiz-header">
+                                <span id="quizNumber">Question</span>
+                                <div class="score-display">Score: <span id="scoreVal">0</span></div>
+                            </div>
+                            <h3 id="quizQuestionText">Loading quiz question...</h3>
+                            
+                            <div class="quiz-actions-row">
+                                <button id="listenQuizQuestionBtn" class="listen-btn" title="Listen to question">
+                                    🔊 Listen
+                                </button>
+                                <button id="quizHintBtn" class="btn-text" title="Show Hint">💡 Need a hint?</button>
+                            </div>
+                            
+                            <p id="quizHintText" class="quiz-hint hidden"></p>
+
+                            <!-- Speech Input Area -->
+                            <div class="speech-input-box">
+                                <div class="mic-controls">
+                                    <button id="quizMicBtn" class="mic-btn" title="Click to Speak Answer">
+                                        <span class="mic-icon">🎙️</span>
+                                    </button>
+                                    <p id="speechStatus">Click the mic and speak your answer</p>
+                                </div>
+                                <textarea id="answerInput" placeholder="Your answer will appear here as you speak, or you can type here..."></textarea>
+                                <button id="submitAnswerBtn" class="btn primary full-width">Submit Answer</button>
+                            </div>
+                        </div>
+
+                        <!-- Feedback Panel -->
+                        <div id="quizFeedbackCard" class="feedback-card hidden">
+                            <div class="feedback-header">
+                                <span id="feedbackStatusBadge" class="badge">Correct</span>
+                                <button id="listenFeedbackBtn" class="listen-btn" title="Listen to feedback">🔊 Listen to Explanation</button>
+                            </div>
+                            <p id="feedbackText">Feedback text here...</p>
+                            <button id="nextQuestionBtn" class="btn secondary">Next Question</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Pane: Sidebar (PDF Upload, Waveform, Quick Audio controls) -->
+            <aside class="sidebar-pane">
+                <!-- Audio Wave Visualizer Panel -->
+                <div class="card visualizer-card">
+                    <h3>🎙️ Voice Activity</h3>
+                    <div class="visualizer-container">
+                        <canvas id="waveformCanvas" width="280" height="80"></canvas>
+                    </div>
+                    <div class="status-indicator">
+                        <span class="indicator-dot" id="voiceIndicatorDot"></span>
+                        <span id="voiceIndicatorText">System Idle</span>
+                    </div>
+                </div>
+
+                <!-- PDF Upload Card -->
+                <div class="card pdf-upload-card">
+                    <h3>📄 Upload Reference Notes</h3>
+                    <p class="card-desc">Upload a PDF of your class slides or chapters to customize explanations and quizzes.</p>
+                    
+                    <div id="dropZone" class="drop-zone">
+                        <input type="file" id="pdfFileInput" accept="application/pdf" class="hidden-input">
+                        <div class="drop-zone-prompt">
+                            <span class="drop-icon">📤</span>
+                            <p>Drag PDF here or <strong>browse</strong></p>
+                            <span class="file-size-limit">Max size: 15MB</span>
+                        </div>
+                        
+                        <!-- Upload Overlay -->
+                        <div id="uploadOverlay" class="upload-overlay hidden">
+                            <div class="spinner-large"></div>
+                            <p style="font-weight: 600; margin-top: 0.4rem; font-size: 0.9rem;">Parsing PDF file...</p>
+                            <span class="upload-progress-sub">Extracting learning context...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Card -->
+                <div class="card info-card">
+                    <h3>💡 Quick Guide</h3>
+                    <ul>
+                        <li>✨ Enter any topic to get explanations parsed chunk-by-chunk.</li>
+                        <li>🔊 Listen to explanations in friendly Hinglish via the side buttons.</li>
+                        <li>🧩 Diagrams will appear in between paragraphs to visualize the concept.</li>
+                        <li>⚡ Go to <strong>Active Recall</strong> to challenge yourself verbally.</li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <p>TEACHu Local Dev Platform | Built for simple local & cloud hosting.</p>
+    </footer>
+
+    <!-- Dark Mode Toggle Button -->
+    <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Dark Mode" aria-label="Toggle Dark Mode">🌙</button>
+
+    <!-- Speed Toggle Button -->
+    <button id="speedToggleBtn" class="speed-toggle-btn" title="Toggle TTS Speed" aria-label="Toggle Playback Speed">1.0x</button>
+
+    <script src="app.js"></script>
+</body>
+</html>
