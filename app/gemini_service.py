@@ -12,14 +12,14 @@ if api_key:
 else:
     print("Warning: GEMINI_API_KEY environment variable is not set.")
 
-def get_model(model_name="gemini-flash-latest"):
+def get_model(model_name="gemini-3.1-flash-lite"):
     """
     Returns a configured model instance.
     """
     return genai.GenerativeModel(model_name)
 
 def generate_content_with_fallback(prompt: str, generation_config: dict = None) -> str:
-    models_to_try = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"]
+    models_to_try = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"]
     last_err = None
     for model_name in models_to_try:
         try:
