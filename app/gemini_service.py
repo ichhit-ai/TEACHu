@@ -18,6 +18,28 @@ def get_model(model_name="gemini-2.5-flash"):
     """
     return genai.GenerativeModel(model_name)
 
+def parse_json_response(text: str) -> dict:
+    text_clean = text.strip()
+    if text_clean.startswith("```"):
+        lines = text_clean.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines[-1].startswith("```"):
+            lines = lines[:-1]
+        text_clean = "\n".join(lines).strip()
+    
+    try:
+        return json.loads(text_clean)
+    except json.JSONDecodeError:
+        start_idx = text_clean.find('{')
+        end_idx = text_clean.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            try:
+                return json.loads(text_clean[start_idx:end_idx+1])
+            except json.JSONDecodeError:
+                pass
+        raise
+
 def generate_explanation(topic: str, context_text: str = None, language: str = "hinglish") -> dict:
     """
     Generates a structured explanation in the chosen language (English, Hinglish, or Hindi) 
@@ -68,14 +90,16 @@ def generate_explanation(topic: str, context_text: str = None, language: str = "
     """
     
     if context_text:
-        prompt += f"\n\nGround your explanation in the following provided reference text:\n{context_text}"
+        # Truncate context to keep prompt focused and prevent model parsing timeouts
+        truncated_context = context_text[:12000]
+        prompt += f"\n\nGround your explanation in the following reference text (truncated for size):\n{truncated_context}"
         
     try:
         response = model.generate_content(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return json.loads(response.text)
+        return parse_json_response(response.text)
     except Exception as e:
         print(f"Error calling Gemini: {e}")
         return {
@@ -123,16 +147,17 @@ def generate_quiz_question(topic: str, context_text: str = None, past_questions:
     """
     
     if context_text:
-        prompt += f"\n\nContext document content to build questions from:\n{context_text}"
+        truncated_context = context_text[:12000]
+        prompt += f"\n\nContext document content to build questions from (truncated):\n{truncated_context}"
     if past_questions:
-        prompt += f"\n\nAvoid repeating these previously asked questions:\n{json.dumps(past_questions)}"
+        prompt += f"\n\nCRITICAL CONSTRAINT: You MUST generate a completely new question that tests a different aspect of this topic. DO NOT repeat, rephrase, or ask a question similar to any of these previously asked questions:\n{json.dumps(past_questions)}"
         
     try:
         response = model.generate_content(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return json.loads(response.text)
+        return parse_json_response(response.text)
     except Exception as e:
         print(f"Error calling Gemini for quiz: {e}")
         return {
@@ -180,7 +205,7 @@ def evaluate_answer(question: str, expected_keywords: list, user_answer: str, la
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return json.loads(response.text)
+        return parse_json_response(response.text)
     except Exception as e:
         print(f"Error calling Gemini for evaluation: {e}")
         return {

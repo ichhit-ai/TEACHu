@@ -30,6 +30,7 @@ app.add_middleware(
 # Global in-memory state for local single-user deployment
 current_pdf_context = ""
 past_quiz_questions = []
+last_quiz_topic = ""
 
 class ExplainRequest(BaseModel):
     topic: str
@@ -307,7 +308,13 @@ async def tts(text: str = Query(..., description="Text to speak"), language: str
 
 @app.post("/api/quiz/generate")
 async def generate_quiz(req: QuizGenerateRequest):
-    global past_quiz_questions
+    global past_quiz_questions, last_quiz_topic
+    
+    # If the topic changes, clear the past quiz history
+    if req.topic != last_quiz_topic:
+        past_quiz_questions = []
+        last_quiz_topic = req.topic
+        
     context = current_pdf_context if req.use_pdf else None
     
     quiz_data = generate_quiz_question(req.topic, context, past_quiz_questions, req.language)
