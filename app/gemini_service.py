@@ -12,11 +12,25 @@ if api_key:
 else:
     print("Warning: GEMINI_API_KEY environment variable is not set.")
 
-def get_model(model_name="gemini-2.5-flash"):
+def get_model(model_name="gemini-flash-latest"):
     """
     Returns a configured model instance.
     """
     return genai.GenerativeModel(model_name)
+
+def generate_content_with_fallback(prompt: str, generation_config: dict = None) -> str:
+    models_to_try = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-pro-latest"]
+    last_err = None
+    for model_name in models_to_try:
+        try:
+            model = get_model(model_name)
+            resp = model.generate_content(prompt, generation_config=generation_config)
+            return resp.text
+        except Exception as e:
+            last_err = e
+            print(f"Fallback warning: failed using model {model_name}: {e}")
+            continue
+    raise last_err
 
 def parse_json_response(text: str) -> dict:
     text_clean = text.strip()
@@ -95,11 +109,11 @@ def generate_explanation(topic: str, context_text: str = None, language: str = "
         prompt += f"\n\nGround your explanation in the following reference text (truncated for size):\n{truncated_context}"
         
     try:
-        response = model.generate_content(
+        response_text = generate_content_with_fallback(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return parse_json_response(response.text)
+        return parse_json_response(response_text)
     except Exception as e:
         print(f"Error calling Gemini: {e}")
         return {
@@ -153,11 +167,11 @@ def generate_quiz_question(topic: str, context_text: str = None, past_questions:
         prompt += f"\n\nCRITICAL CONSTRAINT: You MUST generate a completely new question that tests a different aspect of this topic. DO NOT repeat, rephrase, or ask a question similar to any of these previously asked questions:\n{json.dumps(past_questions)}"
         
     try:
-        response = model.generate_content(
+        response_text = generate_content_with_fallback(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return parse_json_response(response.text)
+        return parse_json_response(response_text)
     except Exception as e:
         print(f"Error calling Gemini for quiz: {e}")
         return {
@@ -201,11 +215,11 @@ def evaluate_answer(question: str, expected_keywords: list, user_answer: str, la
     }}
     """
     try:
-        response = model.generate_content(
+        response_text = generate_content_with_fallback(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return parse_json_response(response.text)
+        return parse_json_response(response_text)
     except Exception as e:
         print(f"Error calling Gemini for evaluation: {e}")
         return {

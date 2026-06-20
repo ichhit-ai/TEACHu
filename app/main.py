@@ -252,13 +252,12 @@ async def upload_pdf(file: UploadFile = File(...)):
         # Generate a quick title for the PDF using Gemini
         pdf_title = "Uploaded PDF Notes"
         try:
-            from app.gemini_service import get_model
-            model = get_model()
+            from app.gemini_service import generate_content_with_fallback
             sample_text = current_pdf_context[:2000]
-            resp = model.generate_content(
+            resp_text = generate_content_with_fallback(
                 f"Identify the main subject or topic of this text. Return ONLY a short 2 to 4 word title in English representing the topic. Do not include quotes, preamble, or formatting.\n\nText:\n{sample_text}"
             )
-            val = resp.text.strip().replace('"', '').replace("'", "")
+            val = resp_text.strip().replace('"', '').replace("'", "")
             if val and len(val) < 50:
                 pdf_title = val
         except Exception as e:
